@@ -1,9 +1,8 @@
-#include "../include/display.h"
+#include "logger.h"
 #include <stdlib.h>
 
 int main(void)
 {
-    display("Hello, World");
-
+    log_info("Hello, world!\n");
     return EXIT_SUCCESS;
 }
