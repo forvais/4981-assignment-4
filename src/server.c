@@ -56,12 +56,12 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
     int opt;
 
     static struct option long_options[] = {
-        {"debug", optional_argument, NULL, 'd'},
-        {"help",  no_argument,       NULL, 'h'},
-        {NULL,    0,                 NULL, 0  }
+        {"debug", no_argument, NULL, 'd'},
+        {"help",  no_argument, NULL, 'h'},
+        {NULL,    0,           NULL, 0  }
     };
 
-    while((opt = getopt_long(argc, argv, "hd::", long_options, NULL)) != -1)
+    while((opt = getopt_long(argc, argv, "hd", long_options, NULL)) != -1)
     {
         switch(opt)
         {
