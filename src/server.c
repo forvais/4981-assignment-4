@@ -1,12 +1,17 @@
+#include "handlers.h"
 #include "logger.h"
+#include "networking.h"
+#include <errno.h>
 #include <getopt.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define UNUSED(x) (void)(x)
 #define UNKNOWN_OPTION_MESSAGE_LEN 22
+#define POLL_TIMEOUT (-1)
+#define MAX_CLIENTS 1024
 
 typedef struct
 {
@@ -21,7 +26,10 @@ static void           validate_arguments(const char *binary_name, const argument
 
 int main(int argc, char *argv[])
 {
-    arguments_t args;
+    int sockfd;
+
+    struct pollfd pollfds[MAX_CLIENTS];
+    arguments_t   args;
 
     // Get arguments
     memset(&args, 0, sizeof(arguments_t));
@@ -32,8 +40,73 @@ int main(int argc, char *argv[])
     logger_set_level(args.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
     log_debug("Running in DEBUG mode.\n\n");
 
-    // Do stuff
-    log_info("Hello, world!\n");
+    // Setup TCP Server
+    sockfd = tcp_server(args.address, args.port);
+    if(sockfd < -1)
+    {
+        return EXIT_FAILURE;
+    }
+    log_info("Listening on %s:%d.\n", args.address, args.port);
+
+    // Initialize empty poll list
+    memset(&pollfds, 0, sizeof(struct pollfd) * MAX_CLIENTS);
+    for(size_t idx = 0; idx < MAX_CLIENTS; idx++)
+    {
+        pollfds[idx].fd     = -1;
+        pollfds[idx].events = POLLIN | POLLHUP | POLLERR;
+    }
+
+    // Add SOCKFD to poll list
+    pollfds[0].fd = sockfd;
+    log_debug("\n%sServer | Init%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
+    log_debug("Added server socket to poll list.\n");
+
+    // Poll for connections
+    log_debug("Polling for data...\n");
+    while(1)
+    {
+        int poll_result;
+
+        errno       = 0;
+        poll_result = poll(pollfds, MAX_CLIENTS, POLL_TIMEOUT);
+        if(poll_result < 0)
+        {
+            log_error("main::poll: %s\n", strerror(errno));
+        }
+
+        // Check incoming connections to server
+        if(pollfds[0].revents & POLLIN)
+        {
+            handle_client_connect(pollfds[0].fd, pollfds, MAX_CLIENTS);
+        }
+
+        for(size_t idx = 1; idx < MAX_CLIENTS; idx++)
+        {
+            struct pollfd *client_pollfd = &pollfds[idx];
+
+            if(client_pollfd->fd == -1)
+            {
+                continue;    // Skip invalid file descriptors
+            }
+
+            // Handle client requests
+            if(client_pollfd->revents & POLLIN)
+            {
+                if(handle_client_data(client_pollfd->fd) == 0)
+                {
+                    // Trigger POLLHUP because the client has closed the connection.
+                    client_pollfd->revents |= POLLHUP;
+                }
+            }
+
+            // Handle client disconnects
+            if(client_pollfd->revents & (POLLHUP | POLLERR))
+            {
+                // worker disconnect signal
+                handle_client_disconnect(client_pollfd->fd, pollfds, MAX_CLIENTS);
+            }
+        }
+    }
 
     // Done!
     return EXIT_SUCCESS;
