@@ -4,12 +4,14 @@
 
 static LOG_LEVEL log_level = LOG_LEVEL_INFO;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
+static void logger_log(FILE *stream, const char *format, LOG_LEVEL max_level, va_list args) __attribute__((format(printf, 2, 0)));
+
 void logger_set_level(LOG_LEVEL level)
 {
     log_level = level;
 }
 
-static void log(FILE *stream, const char *format, LOG_LEVEL max_level, va_list args)
+static void logger_log(FILE *stream, const char *format, LOG_LEVEL max_level, va_list args)
 {
     if(log_level < max_level)
     {    // if the current level is higher than the max level, do not emit the message.
@@ -26,7 +28,7 @@ void log_critical(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    log(stderr, format, LOG_LEVEL_CRITICAL, args);
+    logger_log(stderr, format, LOG_LEVEL_CRITICAL, args);
     va_end(args);
 }
 
@@ -34,7 +36,7 @@ void log_error(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    log(stderr, format, LOG_LEVEL_ERROR, args);
+    logger_log(stderr, format, LOG_LEVEL_ERROR, args);
     va_end(args);
 }
 
@@ -42,7 +44,7 @@ void log_warn(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    log(stderr, format, LOG_LEVEL_WARN, args);
+    logger_log(stderr, format, LOG_LEVEL_WARN, args);
     va_end(args);
 }
 
@@ -50,7 +52,7 @@ void log_info(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    log(stdout, format, LOG_LEVEL_INFO, args);
+    logger_log(stdout, format, LOG_LEVEL_INFO, args);
     va_end(args);
 }
 
@@ -58,6 +60,6 @@ void log_debug(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    log(stdout, format, LOG_LEVEL_DEBUG, args);
+    logger_log(stdout, format, LOG_LEVEL_DEBUG, args);
     va_end(args);
 }

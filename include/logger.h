@@ -20,10 +20,10 @@ typedef enum
 
 void logger_set_level(LOG_LEVEL level);
 
-void log_critical(const char *format, ...);
-void log_error(const char *format, ...);
-void log_warn(const char *format, ...);
-void log_info(const char *format, ...);
-void log_debug(const char *format, ...);
+void log_critical(const char *format, ...) __attribute__((format(printf, 1, 0)));
+void log_error(const char *format, ...) __attribute__((format(printf, 1, 0)));
+void log_warn(const char *format, ...) __attribute__((format(printf, 1, 0)));
+void log_info(const char *format, ...) __attribute__((format(printf, 1, 0)));
+void log_debug(const char *format, ...) __attribute__((format(printf, 1, 0)));
 
 #endif /* LOGGER_H */
