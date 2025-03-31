@@ -86,6 +86,30 @@ exit:
     return sockfd;
 }
 
+int tcp_accept(int sockfd, client_t *client, int *err)
+{
+    int                connfd;
+    struct sockaddr_in connaddr;
+    socklen_t          connsize;
+
+    connsize = sizeof(struct sockaddr_in);
+    memset(&connaddr, 0, connsize);
+
+    errno  = 0;
+    connfd = accept(sockfd, (struct sockaddr *)&connaddr, &connsize);
+    if(connfd < 0)
+    {
+        seterr(errno);
+        return -1;
+    }
+
+    client->fd      = connfd;
+    client->address = inet_ntoa(connaddr.sin_addr);
+    client->port    = connaddr.sin_port;
+
+    return connfd;
+}
+
 /**
  * Sets up an IPv4 or IPv6 address in a socket address struct.
  */

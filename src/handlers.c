@@ -1,6 +1,8 @@
 #include "handlers.h"
 #include "io.h"
 #include "logger.h"
+#include "networking.h"
+#include "state.h"
 #include "utils.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -12,23 +14,19 @@
 
 #define BUFLEN 1024
 
-void handle_client_connect(int sockfd, struct pollfd *pollfds, size_t max_clients)
+void handle_client_connect(int sockfd, app_state_t *app)
 {
-    int                connfd;
-    struct sockaddr_in connaddr;
-    socklen_t          connsize;
+    int err;
 
-    connsize = sizeof(struct sockaddr_in);
-    memset(&connaddr, 0, connsize);
+    client_t client;
 
     log_debug("\n%sFD ? -> Server | Connect:%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 
     // Accept the client connection
-    errno  = 0;
-    connfd = accept(sockfd, (struct sockaddr *)&connaddr, &connsize);
-    if(connfd < 0)
+    err = 0;
+    if(tcp_accept(sockfd, &client, &err) < 0)
     {
-        if(errno != EINTR)
+        if(err != EINTR)
         {
             log_error("handle_client_connect::accept: %s\n", strerror(errno));
         }
@@ -36,43 +34,31 @@ void handle_client_connect(int sockfd, struct pollfd *pollfds, size_t max_client
         return;
     }
 
-    log_info("[fd:%d] \"%s:%d\" connect\n", connfd, inet_ntoa(connaddr.sin_addr), connaddr.sin_port);
+    log_info("[fd:%d] \"%s:%d\" connect\n", client.fd, client.address, client.port);
 
-    // Add client fd to poll list
-    for(size_t offset = 0; offset < max_clients; offset++)
-    {
-        struct pollfd *client_pollfd = pollfds + offset;
-
-        if(client_pollfd->fd != -1)
-        {    // Skip indices that are already occupied by an fd
-            continue;
-        }
-
-        // On the first pollfd with a fd of (-1)...
-        client_pollfd->fd     = connfd;
-        client_pollfd->events = POLLIN | POLLHUP | POLLERR;
-        log_debug("Added client socket [fd:%d] to poll list.\n", connfd);
-        break;
-    }
+    // Add client to a "global" list
+    app_add_client(app, &client);
 }
 
-void handle_client_disconnect(int connfd, struct pollfd *pollfds, size_t max_clients)
+void handle_client_disconnect(int connfd, app_state_t *app)
 {
-    log_debug("\n%sFD %d -> Server | Disconnect:%s\n", ANSI_COLOR_YELLOW, connfd, ANSI_COLOR_RESET);
-    log_info("[fd:%d] disconnect\n", connfd);
-    for(size_t offset = 0; offset < max_clients; offset++)
-    {    // Search for the first pollfd with the client fd...
-        struct pollfd *client_pollfd = pollfds + offset;
+    const client_t *client;
 
-        if(client_pollfd->fd == connfd)
-        {
-            log_debug("Client %d removed.\n", connfd);
-            memset(client_pollfd, -1, sizeof(struct pollfd));
-            break;
-        }
+    // Find the client object by fd
+    client = app_find_client(app, connfd);
+    if(client == NULL)
+    {
+        log_error("handle_client_disconnect::app_find_client: Failed to find client with fd:%d\n", connfd);
+        return;
     }
 
-    close(connfd);
+    // Notify the user that the client has disconnected
+    log_debug("\n%sFD %d -> Server | Disconnect:%s\n", ANSI_COLOR_YELLOW, connfd, ANSI_COLOR_RESET);
+    log_info("[fd:%d] \"%s:%d\" disconnect\n", connfd, client->address, client->port);
+
+    // Remove the client from the "global" list
+    app_remove_client(app, connfd);
+    log_debug("Client %d removed.\n", connfd);
 }
 
 ssize_t handle_client_data(int connfd)

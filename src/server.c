@@ -1,6 +1,7 @@
 #include "handlers.h"
 #include "logger.h"
 #include "networking.h"
+#include "state.h"
 #include <errno.h>
 #include <getopt.h>
 #include <poll.h>
@@ -26,10 +27,12 @@ static void           validate_arguments(const char *binary_name, const argument
 
 int main(int argc, char *argv[])
 {
+    int err;
+
     int sockfd;
 
-    struct pollfd pollfds[MAX_CLIENTS];
-    arguments_t   args;
+    app_state_t app;
+    arguments_t args;
 
     // Get arguments
     memset(&args, 0, sizeof(arguments_t));
@@ -40,6 +43,14 @@ int main(int argc, char *argv[])
     logger_set_level(args.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
     log_debug("Running in DEBUG mode.\n\n");
 
+    // Setup app state
+    err = 0;
+    if(app_init(&app, MAX_CLIENTS, &err) < 0)
+    {
+        log_error("main::app_init: %s\n", strerror(err));
+        return EXIT_FAILURE;
+    }
+
     // Setup TCP Server
     sockfd = tcp_server(args.address, args.port);
     if(sockfd < -1)
@@ -48,16 +59,10 @@ int main(int argc, char *argv[])
     }
     log_info("Listening on %s:%d.\n", args.address, args.port);
 
-    // Initialize empty poll list
-    memset(&pollfds, 0, sizeof(struct pollfd) * MAX_CLIENTS);
-    for(size_t idx = 0; idx < MAX_CLIENTS; idx++)
-    {
-        pollfds[idx].fd     = -1;
-        pollfds[idx].events = POLLIN | POLLHUP | POLLERR;
-    }
-
     // Add SOCKFD to poll list
-    pollfds[0].fd = sockfd;
+    app.pollfds[0].fd     = sockfd;
+    app.pollfds[0].events = POLLIN;
+    app.npollfds++;
     log_debug("\n%sServer | Init%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
     log_debug("Added server socket to poll list.\n");
 
@@ -68,21 +73,21 @@ int main(int argc, char *argv[])
         int poll_result;
 
         errno       = 0;
-        poll_result = poll(pollfds, MAX_CLIENTS, POLL_TIMEOUT);
+        poll_result = poll(app.pollfds, app.npollfds, POLL_TIMEOUT);
         if(poll_result < 0)
         {
             log_error("main::poll: %s\n", strerror(errno));
         }
 
         // Check incoming connections to server
-        if(pollfds[0].revents & POLLIN)
+        if(app.pollfds[0].revents & POLLIN)
         {
-            handle_client_connect(pollfds[0].fd, pollfds, MAX_CLIENTS);
+            handle_client_connect(app.pollfds[0].fd, &app);
         }
 
-        for(size_t idx = 1; idx < MAX_CLIENTS; idx++)
+        for(size_t idx = 1; idx < (app.nclients + 1); idx++)
         {
-            struct pollfd *client_pollfd = &pollfds[idx];
+            struct pollfd *client_pollfd = &app.pollfds[idx];
 
             if(client_pollfd->fd == -1)
             {
@@ -103,7 +108,7 @@ int main(int argc, char *argv[])
             if(client_pollfd->revents & (POLLHUP | POLLERR))
             {
                 // worker disconnect signal
-                handle_client_disconnect(client_pollfd->fd, pollfds, MAX_CLIENTS);
+                handle_client_disconnect(client_pollfd->fd, &app);
             }
         }
     }
