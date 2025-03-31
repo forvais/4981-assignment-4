@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
         int poll_result;
 
         errno       = 0;
-        poll_result = poll(app.pollfds, app.npollfds, POLL_TIMEOUT);
+        poll_result = poll(app.pollfds, (nfds_t)app.npollfds, POLL_TIMEOUT);
         if(poll_result < 0)
         {
             log_error("main::poll: %s\n", strerror(errno));
