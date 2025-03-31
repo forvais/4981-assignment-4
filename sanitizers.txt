@@ -1,1 +1,0 @@
-/home/suzu/projects/_BCIT/3980/templates/template-c/sanitizers.txt
