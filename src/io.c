@@ -1,16 +1,8 @@
 #include "io.h"
+#include "utils.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-#define seterr(x)                                                                                                                                                                                                                                                  \
-    do                                                                                                                                                                                                                                                             \
-    {                                                                                                                                                                                                                                                              \
-        if(err)                                                                                                                                                                                                                                                    \
-        {                                                                                                                                                                                                                                                          \
-            *err = x;                                                                                                                                                                                                                                              \
-        }                                                                                                                                                                                                                                                          \
-    } while(0)
 
 ssize_t read_string(int fd, char **buf, size_t size, int *err)
 {
