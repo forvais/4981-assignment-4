@@ -2,6 +2,7 @@
 #include "utils.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 ssize_t read_string(int fd, char **buf, size_t size, int *err)
