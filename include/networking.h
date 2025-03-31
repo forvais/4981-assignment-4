@@ -1,3 +1,5 @@
+// cppcheck-suppress-file unusedStructMember
+
 #ifndef NETWORKING_H
 #define NETWORKING_H
 
