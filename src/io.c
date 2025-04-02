@@ -1,8 +1,11 @@
 #include "io.h"
+#include "logger.h"
 #include "utils.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 ssize_t read_string(int fd, char **buf, size_t size, int *err)
@@ -79,4 +82,73 @@ ssize_t read_string(int fd, char **buf, size_t size, int *err)
     } while(1);
 
     return nread;
+}
+
+int send_fd(int sock, int fd, int *err)
+{
+    struct iovec    io;
+    struct msghdr   msg = {0};
+    struct cmsghdr *cmsg;
+
+    char buf[1] = {0};
+    char control[CMSG_SPACE(sizeof(int))];
+
+    io.iov_base = buf;
+    io.iov_len  = sizeof(buf);
+
+    msg.msg_iov        = &io;
+    msg.msg_iovlen     = 1;
+    msg.msg_control    = control;
+    msg.msg_controllen = sizeof(control);
+
+    cmsg             = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type  = SCM_RIGHTS;
+    cmsg->cmsg_len   = CMSG_LEN(sizeof(int));
+    memcpy(CMSG_DATA(cmsg), &fd, sizeof(int));
+
+    errno = 0;
+    if(sendmsg(sock, &msg, 0) < 0)
+    {
+        seterr(errno);
+        return -1;
+    }
+
+    return 0;
+}
+
+int recv_fd(int sock, int *err)
+{
+    struct iovec    io;
+    struct msghdr   msg = {0};
+    struct cmsghdr *cmsg;
+
+    char control[CMSG_SPACE(sizeof(int))];
+    char buf[1];
+    int  fd;
+
+    io.iov_base = buf;
+    io.iov_len  = sizeof(buf);
+
+    msg.msg_iov        = &io;
+    msg.msg_iovlen     = 1;
+    msg.msg_control    = control;
+    msg.msg_controllen = sizeof(control);
+
+    errno = 0;
+    if(recvmsg(sock, &msg, 0) < 0)
+    {
+        seterr(errno);
+        return -1;
+    }
+
+    cmsg = CMSG_FIRSTHDR(&msg);
+    if(!(cmsg && cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS))
+    {
+        return -2;
+    }
+
+    memcpy(&fd, CMSG_DATA(cmsg), sizeof(int));
+
+    return fd;
 }
