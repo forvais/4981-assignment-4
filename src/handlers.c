@@ -77,6 +77,7 @@ ssize_t handle_client_data(int connfd)
 
     if(nread == 0)
     {
+        free(buf);
         return 0;    // Client Disconnected
     }
 
@@ -98,6 +99,7 @@ write:
 
     // Assumes that responses are heap allocated
     free(response);
+    free(buf);
 
     return nread;
 }
