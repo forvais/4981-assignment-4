@@ -1,8 +1,21 @@
 #include "utils.h"
 #include <errno.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+int setup_signals(void (*signal_handler_fn)(int sig))
+{
+    struct sigaction sa;
+
+    sa.sa_handler = signal_handler_fn;    // Set handler function for SIGINT
+    sigemptyset(&sa.sa_mask);             // Don't block any additional signals
+    sa.sa_flags = 0;
+
+    // Register signal handler
+    return sigaction(SIGINT, &sa, NULL);
+}
 
 bool is_ipv6(const char *address)
 {

@@ -2,9 +2,11 @@
 #include "logger.h"
 #include "networking.h"
 #include "state.h"
+#include "utils.h"
 #include <errno.h>
 #include <getopt.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +27,16 @@ static _Noreturn void usage(const char *binary_name, int exit_code, const char *
 static void           get_arguments(arguments_t *args, int argc, char *argv[]);
 static void           validate_arguments(const char *binary_name, const arguments_t *args);
 
+static bool volatile is_running = true;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
+
+static void signal_handler_fn(int signal)
+{
+    if(signal == SIGINT)
+    {
+        is_running = false;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     int err;
@@ -33,6 +45,8 @@ int main(int argc, char *argv[])
 
     app_state_t app;
     arguments_t args;
+
+    setup_signals(signal_handler_fn);
 
     // Get arguments
     memset(&args, 0, sizeof(arguments_t));
@@ -68,7 +82,7 @@ int main(int argc, char *argv[])
 
     // Poll for connections
     log_debug("Polling for data...\n");
-    while(1)
+    while(is_running)
     {
         int poll_result;
 
@@ -76,7 +90,10 @@ int main(int argc, char *argv[])
         poll_result = poll(app.pollfds, (nfds_t)app.npollfds, POLL_TIMEOUT);
         if(poll_result < 0)
         {
-            log_error("main::poll: %s\n", strerror(errno));
+            if(errno != EINTR)
+            {
+                log_error("main::poll: %s\n", strerror(errno));
+            }
         }
 
         // Check incoming connections to server
