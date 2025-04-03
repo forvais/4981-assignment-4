@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define UNKNOWN_OPTION_MESSAGE_LEN 22
 #define POLL_TIMEOUT (-1)
@@ -129,6 +130,9 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    close(sockfd);
+    app_destroy(&app);
 
     // Done!
     return EXIT_SUCCESS;

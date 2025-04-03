@@ -47,6 +47,12 @@ int app_init(app_state_t *state, size_t max_clients, int *err)
     return 0;
 }
 
+void app_destroy(app_state_t *state)
+{
+    free(state->clients);
+    free(state->pollfds);
+}
+
 void app_add_client(app_state_t *state, const client_t *client)
 {
     struct pollfd pollfd;
