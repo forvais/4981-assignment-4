@@ -3,6 +3,7 @@
 #include "networking.h"
 #include "state.h"
 #include "utils.h"
+#include "worker.h"
 #include <errno.h>
 #include <getopt.h>
 #include <poll.h>
@@ -11,11 +12,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define UNKNOWN_OPTION_MESSAGE_LEN 22
 #define POLL_TIMEOUT (-1)
 #define MAX_CLIENTS 1024
+#define PREFORKED_CLIENTS 3
 
 typedef struct
 {
@@ -66,6 +69,17 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // Fork 3 workers
+    for(size_t idx = 0; idx < PREFORKED_CLIENTS; idx++)
+    {
+        const worker_t *worker = app_create_worker(&app, NULL);
+
+        if(worker->pid == 0)    // Worker
+        {
+            worker_entrypoint();
+        }
+    }
+
     // Setup TCP Server
     sockfd = tcp_server(args.address, args.port);
     if(sockfd < -1)
@@ -75,9 +89,17 @@ int main(int argc, char *argv[])
     log_info("Listening on %s:%d.\n", args.address, args.port);
 
     // Add SOCKFD to poll list
+
+    // TEMP: Shift all the pollfds up so that the server socket can be index 0
+    for(size_t idx = PREFORKED_CLIENTS; idx >= 1; idx--)
+    {
+        memmove(&app.pollfds[idx], &app.pollfds[idx - 1], sizeof(struct pollfd));
+    }
+
     app.pollfds[0].fd     = sockfd;
     app.pollfds[0].events = POLLIN;
     app.npollfds++;
+
     log_debug("\n%sServer | Init%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
     log_debug("Added server socket to poll list.\n");
 
@@ -99,40 +121,78 @@ int main(int argc, char *argv[])
 
         // Check incoming connections to server
         if(app.pollfds[0].revents & POLLIN)
-        {
+        {    // On client connect...
+            const worker_t *worker;
+
+            // Accept the client and assign the client to a worker...
             handle_client_connect(app.pollfds[0].fd, &app);
-        }
 
-        for(size_t idx = 1; idx < (app.nclients + 1); idx++)
-        {
-            struct pollfd *client_pollfd = &app.pollfds[idx];
-
-            if(client_pollfd->fd == -1)
+            // Spawn another worker to fill the pool...
+            err    = 0;
+            worker = app_create_worker(&app, &err);
+            if(worker == NULL)
             {
-                continue;    // Skip invalid file descriptors
+                log_error("main::poll::POLLIN: Failed to create worker, expect to see one (1) less worker in the pool. (%s)\n", strerror(err));
             }
-
-            // Handle client requests
-            if(client_pollfd->revents & POLLIN)
+            else
             {
-                if(handle_client_data(client_pollfd->fd) == 0)
+                // Jump worker to new entrypoint
+                if(worker->pid == 0)
                 {
-                    // Trigger POLLHUP because the client has closed the connection.
-                    client_pollfd->revents |= POLLHUP;
+                    if(sockfd > -1)    // This is a workaround to being unable to suppress the double close diagnostic
+                    {
+                        close(sockfd);    // Close the server socket, not needed and could interfere
+                        sockfd = -1;
+                    }
+
+                    worker_entrypoint();    // Worker exits in new entrypoint
                 }
             }
+        }
 
-            // Handle client disconnects
-            if(client_pollfd->revents & (POLLHUP | POLLERR))
+        // Iterate through all workers
+        for(size_t idx = 0; idx < app.nworkers; idx++)
+        {
+            struct pollfd *worker_pollfd = &app.pollfds[1 + idx];
+            worker_t      *worker        = app_find_worker_by_fd(&app, worker_pollfd->fd);
+
+            int status;
+
+            if(worker == NULL || worker->pid == 0 || worker->fd < 0 || worker->client.fd < 0)
             {
-                // worker disconnect signal
-                handle_client_disconnect(client_pollfd->fd, &app);
+                continue;    // Only allow workers with assigned clients
+            }
+
+            if(waitpid(worker->pid, &status, WNOHANG) != 0 && WIFEXITED(status))
+            {
+                worker_pollfd->revents |= POLLHUP;
+            }
+
+            if(worker_pollfd->revents & POLLIN)
+            {
+                handle_worker_connect(worker, worker->fd);
+            }
+
+            if(worker_pollfd->revents & (POLLHUP | POLLERR))
+            {
+                handle_worker_disconnect(worker, &app);
             }
         }
     }
 
     close(sockfd);
-    app_destroy(&app);
+
+    for(size_t idx = 0; idx < app.nworkers; idx++)
+    {
+        const worker_t *worker = &app.workers[idx];
+
+        if(app_remove_worker(&app, worker->pid, NULL) < 0)
+        {
+            log_error("main::app_remove_worker: Failed to remove worker.\n");
+        }
+    }
+
+    app_destroy(&app, NULL);
 
     // Done!
     return EXIT_SUCCESS;

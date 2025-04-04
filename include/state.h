@@ -3,7 +3,7 @@
 #ifndef STATE_H
 #define STATE_H
 
-#include "networking.h"
+#include "worker.h"
 #include <poll.h>
 #include <stdlib.h>
 
@@ -11,18 +11,25 @@ typedef struct
 {
     size_t max_clients;
 
-    size_t nclients;
     size_t npollfds;
+    size_t nworkers;
 
-    client_t      *clients;
     struct pollfd *pollfds;
+    worker_t      *workers;
 } app_state_t;
 
-int  app_init(app_state_t *state, size_t max_clients, int *err);
-void app_destroy(app_state_t *state);
+int app_init(app_state_t *state, size_t max_clients, int *err);
+int app_destroy(app_state_t *state, int *err);
 
-void      app_add_client(app_state_t *state, const client_t *client);
-client_t *app_find_client(const app_state_t *state, int fd);
-void      app_remove_client(app_state_t *state, int fd);
+worker_t *app_create_worker(app_state_t *state, int *err);
+worker_t *app_add_worker(app_state_t *state, const worker_t *worker, int *err);
+worker_t *app_find_available_worker(const app_state_t *state, int *err);
+int       app_remove_worker(app_state_t *state, pid_t pid, int *err);
+
+worker_t *app_find_worker_by_fd(const app_state_t *state, int fd);
+worker_t *app_find_worker_by_client_fd(const app_state_t *state, int fd);
+
+struct pollfd *app_poll(app_state_t *state, int fd, int *err);
+int            app_unpoll(app_state_t *state, int fd, int *err);
 
 #endif

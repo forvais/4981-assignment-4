@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 static void setup_addr(struct sockaddr_storage *sockaddr, socklen_t *socklen, char *address, in_port_t port);
@@ -108,6 +109,79 @@ int tcp_accept(int sockfd, client_t *client, int *err)
     client->port    = connaddr.sin_port;
 
     return connfd;
+}
+
+int dmn_server(const char *socket_path, int *err)
+{
+    int sockfd;
+
+    struct sockaddr_un addr;
+
+    // Setup socket address
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path) - 1);
+
+    // Create domain socket
+    errno  = 0;
+    sockfd = socket(AF_UNIX, SOCK_STREAM, 0);    // NOLINT(android-cloexec-socket)
+    if(sockfd < 0)
+    {
+        seterr(errno);
+        return -1;
+    }
+
+    // Bind the socket
+    errno = 0;
+    if(bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        seterr(errno);
+        close(sockfd);
+        return -2;
+    }
+
+    // Enable client connections
+    errno = 0;
+    if(listen(sockfd, 1) < 0)
+    {
+        seterr(errno);
+        close(sockfd);
+        return -3;
+    }
+
+    return sockfd;
+}
+
+int dmn_client(const char *socket_path, int *err)
+{
+    int sockfd;
+
+    struct sockaddr_un addr;
+
+    // Setup socket address
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path) - 1);
+
+    // Create domain socket
+    errno  = 0;
+    sockfd = socket(AF_UNIX, SOCK_STREAM, 0);    // NOLINT(android-cloexec-socket)
+    if(sockfd < 0)
+    {
+        seterr(errno);
+        return -1;
+    }
+
+    // Connect to remote socket
+    errno = 0;
+    if(connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        seterr(errno);
+        close(sockfd);
+        return -3;
+    }
+
+    return sockfd;
 }
 
 /**
