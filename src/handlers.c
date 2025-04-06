@@ -1,4 +1,5 @@
 #include "handlers.h"
+#include "http/http.h"
 #include "io.h"
 #include "logger.h"
 #include "networking.h"
@@ -90,12 +91,18 @@ ssize_t handle_client_data(int connfd)
     char   *buf;
     ssize_t nread;
 
-    char *response;
+    // uint8_t *response;
+    char   *response_buf;
+    ssize_t response_size = 0;
+
+    http_request_t  request;
+    http_response_t response;
 
     nread = read_string(connfd, &buf, BUFLEN, NULL);
     if(nread < 0)
     {
-        strhcpy(&response, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
+        strhcpy(&response_buf, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
+        response_size = (ssize_t)strlen(response_buf);
         goto write;
     }
 
@@ -110,20 +117,31 @@ ssize_t handle_client_data(int connfd)
     log_debug("%s\n", buf);    // print the data sent to us
 
     // Do response stuff
-    response = NULL;
-    strhcpy(&response, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+    request_init(&request, "/home/suzu/projects/_BCIT/4981/resources/http-test-suite", NULL);
+    request_parse(&request, buf, NULL);
+    request_process(&request, &response, NULL);
+    response.http_version = request.http_version;
+    response_size         = response_write(&response, &request, &response_buf, NULL);
+    if(response_size < 0)
+    {
+        strhcpy(&response_buf, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
+        response_size = (ssize_t)strlen(response_buf);
+    }
 
 write:
     // Report the outgoing data
     log_debug("\n%sServer -> FD %d | Response:%s\n", ANSI_COLOR_YELLOW, connfd, ANSI_COLOR_RESET);    // Should only print if the client hasn't disconnected
-    log_debug("%s\n", response);
+    log_debug("%s\n", response_buf);
 
     // Write the response
-    write(connfd, response, strlen(response));
+    write(connfd, response_buf, (size_t)response_size);
 
     // Assumes that responses are heap allocated
-    free(response);
+    // free(response);
+    request_destroy(&request, NULL);
+    response_destroy(&response, NULL);
     free(buf);
+    free(response_buf);
 
     return nread;
 }

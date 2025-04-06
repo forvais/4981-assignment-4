@@ -1,1 +1,1 @@
-server src/server.c src/logger.c include/logger.h src/networking.c include/networking.h src/utils.c include/utils.h src/handlers.c include/handlers.h src/io.c include/io.h src/state.c include/state.h src/worker.c include/worker.h
+server src/server.c src/logger.c include/logger.h src/networking.c include/networking.h src/utils.c include/utils.h src/handlers.c include/handlers.h src/io.c include/io.h src/state.c include/state.h src/worker.c include/worker.h src/http/tokenizer.c include/http/tokenizer.h src/http/http.c include/http/http.h
