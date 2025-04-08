@@ -168,22 +168,12 @@ int request_parse(http_request_t *request, const char *data, int *err)
         return -1;
     }
 
-    // Set request properties
-    http_valid    = validate_http_method(tokens.method);
-    uri_valid     = validate_http_uri(tokens.uri);
-    version_valid = validate_http_version(tokens.version);
-
-    if(!http_valid || !uri_valid || !version_valid)
-    {
-        return -2;
-    }
-
-    //  -- Set request line properties
+    // Set request line properties
     request->method       = get_http_method_code(tokens.method, NULL);
-    request->request_uri  = strdup(tokens.uri);
+    request->request_uri  = strdup(strcmp(tokens.uri, "/") == 0 ? "/index.html" : tokens.uri);
     request->http_version = get_http_version_code(tokens.version, NULL);
 
-    //  -- Set header properties
+    // Set header properties
     errno      = 0;
     header_str = strdup(tokens.headers);
     if(header_str == NULL)
