@@ -117,7 +117,7 @@ ssize_t handle_client_data(int connfd)
     log_debug("%s\n", buf);    // print the data sent to us
 
     // Do response stuff
-    request_init(&request, "/home/suzu/projects/_BCIT/4981/resources/http-test-suite", NULL);
+    request_init(&request, "./public/", NULL);
     request_parse(&request, buf, NULL);
     request_process(&request, &response, NULL);
     response.http_version = request.http_version;

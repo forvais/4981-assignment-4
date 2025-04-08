@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#pragma GCC diagnostic ignored "-Wc++-compat"
+
 #define WRAP(...) ((parser_wrapper_t[]){__VA_ARGS__})
 #define COMBINATOR_START(x, s) ((x)->parse(s, (x)->ctx))
 
