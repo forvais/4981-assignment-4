@@ -236,8 +236,9 @@ int request_process(http_request_t *request, http_response_t *response, int *err
     switch(request->method)
     {
         case HTTP_METHOD_GET:
-        case HTTP_METHOD_POST:
             return handle_get(request, response, err);
+        case HTTP_METHOD_POST:
+            return handle_post(request, response, err);
         case HTTP_METHOD_HEAD:
             return handle_head(request, response, err);
         case HTTP_METHOD_UNKNOWN:
@@ -336,6 +337,13 @@ int handle_head(http_request_t *request, http_response_t *response, int *err)
     handle_get(request, response, err);
 
     response->body = NULL;
+
+    return 0;
+}
+
+int handle_post(http_request_t *request, http_response_t *response, int *err)
+{
+    handle_get(request, response, err);
 
     return 0;
 }
