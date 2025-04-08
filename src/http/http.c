@@ -156,10 +156,6 @@ int request_parse(http_request_t *request, const char *data, int *err)
 {
     http_request_tokens_t tokens;
 
-    bool http_valid    = false;
-    bool uri_valid     = false;
-    bool version_valid = false;
-
     char *header_str   = NULL;
     char *header_token = NULL;
     char *save_header_token;
@@ -254,6 +250,8 @@ int request_process(http_request_t *request, http_response_t *response, int *err
 // Request - Handlers
 int handle_get(http_request_t *request, http_response_t *response, int *err)
 {
+    bool uri_valid = false;
+
     int     fd        = -1;
     char   *body      = NULL;
     ssize_t body_size = -1;
@@ -261,6 +259,14 @@ int handle_get(http_request_t *request, http_response_t *response, int *err)
     char *filepath             = NULL;
     char *content_length_value = NULL;
     char *content_type_value   = NULL;
+
+    uri_valid = validate_http_uri(request->request_uri);
+
+    if(!uri_valid)
+    {    // User has probably tried to backtrack
+        response_init(response, HTTP_STATUS_403, NULL);
+        goto exit;
+    }
 
     // Create full filepath
     filepath = make_string("%s%s", request->public_dir, request->request_uri);
