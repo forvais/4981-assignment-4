@@ -448,7 +448,7 @@ int response_write_status_line(const http_response_t *response, char **buf, size
     }
 
     // Get total string length
-    len = snprintf(NULL, 0, "%s %d %s\r\n", version, status, status_msg);
+    len = snprintf(NULL, 0, "%s %ud %s\r\n", version, status, status_msg);    // cppcheck-suppress invalidPrintfArgType_uint
     if(len < 0)
     {
         seterr(EIO);
@@ -464,7 +464,10 @@ int response_write_status_line(const http_response_t *response, char **buf, size
     *buf = tbuf;
 
     // Write to buf
-    written = snprintf(tbuf, (size_t)len + 1, "%s %d %s\r\n", version, status, status_msg);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+    written = snprintf(tbuf, (size_t)len + 1, "%s %ud %s\r\n", version, status, status_msg);    // cppcheck-suppress invalidPrintfArgType_uint
+#pragma GCC diagnostic pop
     if(written != len)
     {
         free(tbuf);
@@ -507,9 +510,9 @@ int response_write_headers(const http_response_t *response, char **buf, size_t *
 
         // Write header in buffer
         memcpy(*buf + *buf_size, header->key, key_len);
-        strncpy(*buf + *buf_size + key_len, ": ", 2);
+        memcpy(*buf + *buf_size + key_len, ": ", 2);
         memcpy(*buf + *buf_size + key_len + 2, header->value, value_len);
-        strncpy(*buf + *buf_size + key_len + 2 + value_len, "\r\n", 2);
+        memcpy(*buf + *buf_size + key_len + 2 + value_len, "\r\n", 2);
         (*buf)[*buf_size + total_len] = '\0';
         *buf_size += total_len;
     }
@@ -539,7 +542,7 @@ int response_write_crlf(const http_response_t *response, char **buf, size_t *buf
     *buf = tbuf;
 
     // Write \r\n into buf
-    strncpy(*buf + *buf_size, "\r\n", 2);
+    memcpy(*buf + *buf_size, "\r\n", 2);
     (*buf)[*buf_size + 2] = '\0';
     *buf_size += 2;
 
