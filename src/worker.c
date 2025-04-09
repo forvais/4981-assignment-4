@@ -1,4 +1,5 @@
 #include "worker.h"
+#include "context.h"
 #include "handlers.h"
 #include "io.h"
 #include "logger.h"
@@ -180,7 +181,7 @@ static void signal_handler_fn(int signal)
     }
 }
 
-_Noreturn void worker_entrypoint(void)
+_Noreturn void worker_entrypoint(context_t *context)
 {
     int retval;
     int err;
@@ -193,6 +194,7 @@ _Noreturn void worker_entrypoint(void)
     int connfd = -1;
 
     setup_signals(signal_handler_fn);
+    context->func();
 
     // Set socket path
     pid = getpid();

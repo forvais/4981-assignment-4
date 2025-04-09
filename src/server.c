@@ -1,9 +1,11 @@
+#include "context.h"
 #include "handlers.h"
 #include "logger.h"
 #include "networking.h"
 #include "state.h"
 #include "utils.h"
 #include "worker.h"
+#include <dlfcn.h>
 #include <errno.h>
 #include <getopt.h>
 #include <poll.h>
@@ -50,6 +52,8 @@ int main(int argc, char *argv[])
     app_state_t app;
     arguments_t args;
 
+    context_t context;
+
     setup_signals(signal_handler_fn);
 
     // Get arguments
@@ -69,6 +73,17 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
+    unload_library();
+    context.func = (void (*)(void))dlsym(load_library(), "test");
+
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
+
     // Fork 3 workers
     for(size_t idx = 0; idx < PREFORKED_CLIENTS; idx++)
     {
@@ -76,7 +91,7 @@ int main(int argc, char *argv[])
 
         if(worker->pid == 0)    // Worker
         {
-            worker_entrypoint();
+            worker_entrypoint(&context);
         }
     }
 
@@ -145,7 +160,7 @@ int main(int argc, char *argv[])
                         sockfd = -1;
                     }
 
-                    worker_entrypoint();    // Worker exits in new entrypoint
+                    worker_entrypoint(&context);    // Worker exits in new entrypoint
                 }
             }
         }

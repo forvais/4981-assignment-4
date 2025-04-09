@@ -1,4 +1,5 @@
 #include "handlers.h"
+#include "context.h"
 #include "http/http.h"
 #include "io.h"
 #include "logger.h"
@@ -7,6 +8,7 @@
 #include "utils.h"
 #include "worker.h"
 #include <arpa/inet.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -26,6 +28,8 @@ void handle_client_connect(int sockfd, app_state_t *app)
     worker_t *worker;
     client_t  client;
 
+    context_t context;
+
     log_debug("\n%sFD ? -> Server | Connect:%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 
     // Defer connection handling if we're at max clients
@@ -33,6 +37,17 @@ void handle_client_connect(int sockfd, app_state_t *app)
     {
         return;
     }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+
+    unload_library();
+    context.func = (void (*)(void))dlsym(load_library(), "test");
+
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 
     // Find an available worker -- If none available, create a new worker
     worker = app_find_available_worker(app, NULL);
@@ -50,7 +65,7 @@ void handle_client_connect(int sockfd, app_state_t *app)
         // Jump worker to new entrypoint
         if(worker->pid == 0)
         {
-            worker_entrypoint();
+            worker_entrypoint(&context);
         }
     }
 
