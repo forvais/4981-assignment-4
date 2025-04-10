@@ -1,5 +1,6 @@
 #include "state.h"
 #include "logger.h"
+#include "ndbm/database.h"
 #include "utils.h"
 #include "worker.h"
 #include <errno.h>
@@ -24,6 +25,11 @@ int app_init(app_state_t *state, size_t max_clients, int *err)
         return -1;
     }
 
+    if(db_init(&state->db, DB_RECORDS, err) < 0)
+    {
+        return -2;
+    }
+
     state->npollfds    = 0;
     state->nworkers    = 0;
     state->max_clients = max_clients;
@@ -34,7 +40,7 @@ int app_init(app_state_t *state, size_t max_clients, int *err)
     if(state->pollfds == NULL)
     {
         seterr(errno);
-        return -1;
+        return -3;
     }
 
     errno          = 0;
@@ -42,7 +48,7 @@ int app_init(app_state_t *state, size_t max_clients, int *err)
     if(state->workers == NULL)
     {
         seterr(errno);
-        return -2;
+        return -4;    // NOLINT(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     }
 
     for(size_t idx = 0; idx < max_clients; idx++)
@@ -69,6 +75,8 @@ int app_destroy(app_state_t *state, int *err)
 
     free(state->workers);
     free(state->pollfds);
+
+    db_destroy(&state->db);
 
     return 0;
 }
@@ -342,7 +350,7 @@ int app_scale_workers(app_state_t *state, int *err)
 
             if(worker->pid == 0)    // Worker
             {
-                worker_entrypoint();
+                worker_entrypoint(state->db);
             }
         }
     }

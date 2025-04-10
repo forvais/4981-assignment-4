@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #define unused(x) ((void)(x))

@@ -3,6 +3,7 @@
 #include "io.h"
 #include "loader.h"
 #include "logger.h"
+#include "ndbm/database.h"
 #include "networking.h"
 #include "state.h"
 #include "utils.h"
@@ -83,7 +84,7 @@ void handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_fil
     app_set_desired_workers(app, app->desired_workers + 1, NULL);
 }
 
-ssize_t handle_client_data(int connfd)
+ssize_t handle_client_data(int connfd, DBM *db)
 {
     char   *buf;
     ssize_t nread;
@@ -117,6 +118,14 @@ ssize_t handle_client_data(int connfd)
     request_init(&request, "./public/", NULL);
     request_parse(&request, buf, NULL);
     request_process(&request, &response, NULL);
+
+    log_info("[FD:%d] %s\n", connfd, request.request_uri);
+
+    if(request.method == HTTP_METHOD_POST && request.body_size > 0 && db_insert(db, request.request_uri, request.body, request.body_size, NULL) < 0)
+    {
+        log_error("handle_client_data::db_insert: Failed to insert record at route (%s)\n", request.request_uri);
+    }
+
     response.http_version = request.http_version;
     response_size         = response_write(&response, &request, &response_buf, NULL);
     if(response_size < 0)
