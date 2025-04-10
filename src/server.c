@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if(reload_library() < 0)
+    if(reload_library(LIBHTTP_PATH) < 0)
     {
         log_error("main::reload_library: %s\n", dlerror());
     }

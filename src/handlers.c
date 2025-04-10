@@ -36,7 +36,7 @@ void handle_client_connect(int sockfd, app_state_t *app)
         return;
     }
 
-    if(reload_library() < 0)
+    if(reload_library(LIBHTTP_PATH) < 0)
     {
         log_error("handle_client_connect::reload_library: %s\n", dlerror());
     }

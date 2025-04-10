@@ -11,10 +11,9 @@ static int (*s_response_write)(const http_response_t *, const http_request_t *, 
 static int (*s_request_destroy)(http_request_t *, int *)                                        = NULL;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 static int (*s_response_destroy)(http_response_t *, int *)                                      = NULL;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
-static void *load_library(void)
+static void load_library(const char *filepath)
 {
-    dlhandle = dlopen("./libhttp.so", RTLD_LAZY);
-    return dlhandle;
+    dlhandle = dlopen(filepath, RTLD_LAZY);
 }
 
 static void unload_library(void)
@@ -33,10 +32,10 @@ static void unload_library(void)
     }
 }
 
-int reload_library(void)
+int reload_library(const char *filepath)
 {
     unload_library();
-    load_library();
+    load_library(filepath);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-prototypes"

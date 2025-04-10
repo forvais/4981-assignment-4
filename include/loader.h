@@ -3,7 +3,9 @@
 
 #include "http/http-info.h"
 
-int reload_library(void);
+#define LIBHTTP_PATH "./libhttp.so"
+
+int reload_library(const char *filepath);
 
 int request_init(http_request_t *, const char *, int *);
 int request_parse(http_request_t *, const char *, int *);
