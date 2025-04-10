@@ -449,7 +449,7 @@ int response_write_status_line(const http_response_t *response, char **buf, size
     }
 
     // Get total string length
-    len = snprintf(NULL, 0, "%s %ud %s\r\n", version, status, status_msg);    // cppcheck-suppress invalidPrintfArgType_uint
+    len = snprintf(NULL, 0, "%s %u %s\r\n", version, status, status_msg);    // cppcheck-suppress invalidPrintfArgType_uint
     if(len < 0)
     {
         seterr(EIO);
@@ -467,7 +467,7 @@ int response_write_status_line(const http_response_t *response, char **buf, size
     // Write to buf
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-truncation"
-    written = snprintf(tbuf, (size_t)len + 1, "%s %ud %s\r\n", version, status, status_msg);    // cppcheck-suppress invalidPrintfArgType_uint
+    written = snprintf(tbuf, (size_t)len + 1, "%s %u %s\r\n", version, status, status_msg);    // cppcheck-suppress invalidPrintfArgType_uint
 #pragma GCC diagnostic pop
     if(written != len)
     {
