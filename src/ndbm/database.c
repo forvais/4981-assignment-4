@@ -5,9 +5,12 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#pragma GCC diagnostic ignored "-Waggregate-return"
 
 int db_insert(DBM *db, const char *key, const uint8_t *buf, size_t size, int *err)
 {
@@ -30,7 +33,12 @@ int db_insert(DBM *db, const char *key, const uint8_t *buf, size_t size, int *er
     }
 
     memcpy(value_datum.dptr, buf, size);
+
+#ifdef __APPLE__
+    value_datum.dsize = size;
+#else
     value_datum.dsize = (int)size;
+#endif
 
     result = dbm_store(db, *(datum *)&key_datum, value_datum, DBM_REPLACE);
 

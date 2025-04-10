@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#pragma GCC diagnostic ignored "-Waggregate-return"
+
 int main(int argc, const char *argv[])
 {
     DBM  *db;

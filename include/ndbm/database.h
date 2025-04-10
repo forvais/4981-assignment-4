@@ -1,4 +1,4 @@
-// cppcheck-suppress-file unusedStructMembers
+// cppcheck-suppress-file unusedStructMember
 
 #ifndef DATABASE_H
 #define DATABASE_H
