@@ -4,13 +4,11 @@
 #include "utils.h"
 #include "worker.h"
 #include <errno.h>
-#include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/inotify.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
