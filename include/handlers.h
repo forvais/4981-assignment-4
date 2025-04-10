@@ -5,7 +5,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-void    handle_client_connect(int sockfd, app_state_t *app);
+void    handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_filepath);
 ssize_t handle_client_data(int connfd);
 
 ssize_t handle_workers(worker_t *workers, size_t nworkers, app_state_t *app);

@@ -21,7 +21,7 @@
 
 #define BUFLEN 1024
 
-void handle_client_connect(int sockfd, app_state_t *app)
+void handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_filepath)
 {
     int err;
 
@@ -36,7 +36,7 @@ void handle_client_connect(int sockfd, app_state_t *app)
         return;
     }
 
-    if(reload_library(LIBHTTP_PATH) < 0)
+    if(reload_library(libhttp_filepath) < 0)
     {
         log_error("handle_client_connect::reload_library: %s\n", dlerror());
     }

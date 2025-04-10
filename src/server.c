@@ -24,14 +24,15 @@
 
 typedef struct
 {
-    char     *address;
-    in_port_t port;
-    bool      debug;
+    char       *address;
+    in_port_t   port;
+    bool        debug;
+    const char *libhttp_path;
 } arguments_t;
 
 static _Noreturn void usage(const char *binary_name, int exit_code, const char *message);
 static void           get_arguments(arguments_t *args, int argc, char *argv[]);
-static void           validate_arguments(const char *binary_name, const arguments_t *args);
+static void           validate_arguments(const char *binary_name, arguments_t *args);
 
 static bool volatile is_running = true;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -71,7 +72,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    if(reload_library(LIBHTTP_PATH) < 0)
+    if(reload_library(args.libhttp_path) < 0)
     {
         log_error("main::reload_library: %s\n", dlerror());
     }
@@ -132,7 +133,7 @@ int main(int argc, char *argv[])
             const worker_t *worker;
 
             // Accept the client and assign the client to a worker...
-            handle_client_connect(app.pollfds[0].fd, &app);
+            handle_client_connect(app.pollfds[0].fd, &app, args.libhttp_path);
 
             // Spawn another worker to fill the pool...
             err    = 0;
@@ -212,12 +213,13 @@ static _Noreturn void usage(const char *binary_name, int exit_code, const char *
         fprintf(stderr, "%s\n\n", message);
     }
 
-    fprintf(stderr, "Usage: %s [-h] [-d] -a <address> -p <port>\n", binary_name);
+    fprintf(stderr, "Usage: %s [-h] [-d] [-l <filepath>] -a <address> -p <port>\n", binary_name);
     fputs("Options:\n", stderr);
     fputs("  -a, --address <address>   Address of the web server\n", stderr);
     fputs("  -p, --port <port>         Port to bind to\n", stderr);
     fputs("  -h, --help                Display this help message\n", stderr);
     fputs("  -d, --debug               Enables the debug mode\n", stderr);
+    fputs("  -l, --lib <filepath>      Filepath to an accompanying HTTP library.\n", stderr);
     exit(exit_code);
 }
 
@@ -230,11 +232,12 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
         {"address", required_argument, NULL, 'a'},
         {"port",    required_argument, NULL, 'p'},
         {"debug",   no_argument,       NULL, 'd'},
+        {"lib",     required_argument, NULL, 'l'},
         {"help",    no_argument,       NULL, 'h'},
         {NULL,      0,                 NULL, 0  }
     };
 
-    while((opt = getopt_long(argc, argv, "hda:p:", long_options, NULL)) != -1)
+    while((opt = getopt_long(argc, argv, "hda:p:l:", long_options, NULL)) != -1)
     {
         switch(opt)
         {
@@ -251,6 +254,9 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
                 break;
             case 'd':
                 args->debug = (optarg == NULL);
+                break;
+            case 'l':
+                args->libhttp_path = optarg;
                 break;
             case 'h':
                 usage(argv[0], EXIT_SUCCESS, NULL);
@@ -269,7 +275,7 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
     }
 }
 
-static void validate_arguments(const char *binary_name, const arguments_t *args)
+static void validate_arguments(const char *binary_name, arguments_t *args)
 {
     if(args->address == NULL)
     {
@@ -279,5 +285,10 @@ static void validate_arguments(const char *binary_name, const arguments_t *args)
     if(args->port == 0)
     {
         usage(binary_name, EXIT_FAILURE, "You must provide an available port to connect to.");
+    }
+
+    if(args->libhttp_path == NULL)
+    {
+        args->libhttp_path = LIBHTTP_PATH;
     }
 }
