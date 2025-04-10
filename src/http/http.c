@@ -1,6 +1,5 @@
 #include "http/http.h"
 #include "http/tokenizer.h"
-#include "utils.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <memory.h>
@@ -29,6 +28,8 @@ typedef struct
     HTTP_VERSION key;
     const char  *value;
 } http_version_string_map_t;
+
+static char *make_string(const char *fmt, ...);
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static http_status_string_map_t status_msgs[] = {
@@ -920,43 +921,43 @@ const char *get_mime_type(const char *filepath)
 
 // Utils - IO
 
-// char *make_string(const char *fmt, ...)
-// {
-//     int     n    = 0;
-//     size_t  size = 0;
-//     char   *p    = NULL;
-//     va_list ap;
-//
-//     /* Determine required size. */
-//
-//     va_start(ap, fmt);
-//     n = vsnprintf(p, size, fmt, ap);    // NOLINT(clang-analyzer-valist.Uninitialized)
-//     va_end(ap);
-//
-//     if(n < 0)
-//     {
-//         return NULL;
-//     }
-//
-//     size = (size_t)n + 1; /* One extra byte for '\0' */
-//     p    = (char *)malloc(size);
-//     if(p == NULL)
-//     {
-//         return NULL;
-//     }
-//
-//     va_start(ap, fmt);
-//     n = vsnprintf(p, size, fmt, ap);    // NOLINT(clang-analyzer-valist.Uninitialized)
-//     va_end(ap);
-//
-//     if(n < 0)
-//     {
-//         free(p);
-//         return NULL;
-//     }
-//
-//     return p;
-// }
+static char *make_string(const char *fmt, ...)
+{
+    int     n    = 0;
+    size_t  size = 0;
+    char   *p    = NULL;
+    va_list ap;
+
+    /* Determine required size. */
+
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);    // NOLINT(clang-analyzer-valist.Uninitialized)
+    va_end(ap);
+
+    if(n < 0)
+    {
+        return NULL;
+    }
+
+    size = (size_t)n + 1; /* One extra byte for '\0' */
+    p    = (char *)malloc(size);
+    if(p == NULL)
+    {
+        return NULL;
+    }
+
+    va_start(ap, fmt);
+    n = vsnprintf(p, size, fmt, ap);    // NOLINT(clang-analyzer-valist.Uninitialized)
+    va_end(ap);
+
+    if(n < 0)
+    {
+        free(p);
+        return NULL;
+    }
+
+    return p;
+}
 
 ssize_t read_fd(int fd, uint8_t **buf, size_t size, int *err)
 {

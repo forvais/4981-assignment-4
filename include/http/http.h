@@ -3,7 +3,6 @@
 #ifndef HTTP_H
 #define HTTP_H
 
-#include "http/tokenizer.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
