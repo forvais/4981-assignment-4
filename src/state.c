@@ -231,7 +231,7 @@ int app_remove_worker(app_state_t *state, pid_t pid, int *err)
             seterr(0);
             if(app_unpoll(state, worker->fd, err) < 0)
             {
-                if(*err == EINVAL)
+                if(err && *err == EINVAL)
                 {
                     // The worker does not have a valid domain socket, likely means data corruption has occurred and this worker obj
                     // can not be trusted
