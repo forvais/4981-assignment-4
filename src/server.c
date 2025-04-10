@@ -27,6 +27,7 @@ typedef struct
     in_port_t   port;
     bool        debug;
     const char *libhttp_path;
+    size_t      workers;
 } arguments_t;
 
 static _Noreturn void usage(const char *binary_name, int exit_code, const char *message);
@@ -76,8 +77,8 @@ int main(int argc, char *argv[])
         log_error("main::reload_library: %s\n", dlerror());
     }
 
-    // Fork 3 workers
-    app_set_desired_workers(&app, NUM_WORKERS, NULL);
+    // Set number of available workers
+    app_set_desired_workers(&app, args.workers, NULL);
 
     // Setup TCP Server
     sockfd = tcp_server(args.address, args.port);
@@ -181,13 +182,14 @@ static _Noreturn void usage(const char *binary_name, int exit_code, const char *
         fprintf(stderr, "%s\n\n", message);
     }
 
-    fprintf(stderr, "Usage: %s [-h] [-d] [-l <filepath>] -a <address> -p <port>\n", binary_name);
+    fprintf(stderr, "Usage: %s [-h] [-d] [-l <filepath>] [-w <workers>] -a <address> -p <port>\n", binary_name);
     fputs("Options:\n", stderr);
     fputs("  -a, --address <address>   Address of the web server\n", stderr);
     fputs("  -p, --port <port>         Port to bind to\n", stderr);
     fputs("  -h, --help                Display this help message\n", stderr);
     fputs("  -d, --debug               Enables the debug mode\n", stderr);
     fputs("  -l, --lib <filepath>      Filepath to an accompanying HTTP library.\n", stderr);
+    fputs("  -w, --workers <workers>   Number of workers to always be available.\n", stderr);
     exit(exit_code);
 }
 
@@ -201,11 +203,12 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
         {"port",    required_argument, NULL, 'p'},
         {"debug",   no_argument,       NULL, 'd'},
         {"lib",     required_argument, NULL, 'l'},
+        {"workers", required_argument, NULL, 'w'},
         {"help",    no_argument,       NULL, 'h'},
         {NULL,      0,                 NULL, 0  }
     };
 
-    while((opt = getopt_long(argc, argv, "hda:p:l:", long_options, NULL)) != -1)
+    while((opt = getopt_long(argc, argv, "hda:p:l:w:", long_options, NULL)) != -1)
     {
         switch(opt)
         {
@@ -225,6 +228,14 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
                 break;
             case 'l':
                 args->libhttp_path = optarg;
+                break;
+            case 'w':
+                if(optarg)
+                {
+                    char *end;
+
+                    args->workers = strtoul(optarg, &end, 10);    // NOLINT(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                }
                 break;
             case 'h':
                 usage(argv[0], EXIT_SUCCESS, NULL);
@@ -258,5 +269,10 @@ static void validate_arguments(const char *binary_name, arguments_t *args)
     if(args->libhttp_path == NULL)
     {
         args->libhttp_path = LIBHTTP_PATH;
+    }
+
+    if(args->workers == 0)
+    {
+        args->workers = NUM_WORKERS;
     }
 }
