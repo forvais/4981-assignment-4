@@ -22,6 +22,7 @@
 #define UNKNOWN_OPTION_MESSAGE_LEN 22
 #define POLL_TIMEOUT (-1)
 #define MAX_CLIENTS 1024
+#define PUBLIC_DIR "./public/"
 
 typedef struct
 {
@@ -30,6 +31,7 @@ typedef struct
     bool        debug;
     const char *libhttp_path;
     size_t      workers;
+    const char *public_dir;
 } arguments_t;
 
 static _Noreturn void usage(const char *binary_name, int exit_code, const char *message);
@@ -126,7 +128,7 @@ int main(int argc, char *argv[])
 
         // Scale workers
         app_health_check_workers(&app, NULL);
-        if(app_scale_workers(&app, &err) < 0)
+        if(app_scale_workers(&app, args.public_dir, &err) < 0)
         {
             log_error("main::app_scale_workers: Failed to scale workers (%s)\n", strerror(err));
         }
@@ -214,6 +216,7 @@ static _Noreturn void usage(const char *binary_name, int exit_code, const char *
     fputs("  -d, --debug               Enables the debug mode\n", stderr);
     fputs("  -l, --lib <filepath>      Filepath to an accompanying HTTP library.\n", stderr);
     fputs("  -w, --workers <workers>   Number of workers to always be available.\n", stderr);
+    fputs("  -s, --serve <directory>   Serve files from inside this directory.\n", stderr);
     exit(exit_code);
 }
 
@@ -228,11 +231,12 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
         {"debug",   no_argument,       NULL, 'd'},
         {"lib",     required_argument, NULL, 'l'},
         {"workers", required_argument, NULL, 'w'},
+        {"serve",   required_argument, NULL, 's'},
         {"help",    no_argument,       NULL, 'h'},
         {NULL,      0,                 NULL, 0  }
     };
 
-    while((opt = getopt_long(argc, argv, "hda:p:l:w:", long_options, NULL)) != -1)
+    while((opt = getopt_long(argc, argv, "hda:p:l:w:s:", long_options, NULL)) != -1)
     {
         switch(opt)
         {
@@ -260,6 +264,9 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
 
                     args->workers = strtoul(optarg, &end, 10);    // NOLINT(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
                 }
+                break;
+            case 's':
+                args->public_dir = optarg;
                 break;
             case 'h':
                 usage(argv[0], EXIT_SUCCESS, NULL);
@@ -298,5 +305,10 @@ static void validate_arguments(const char *binary_name, arguments_t *args)
     if(args->workers == 0)
     {
         args->workers = NUM_WORKERS;
+    }
+
+    if(args->public_dir == NULL)
+    {
+        args->public_dir = PUBLIC_DIR;
     }
 }

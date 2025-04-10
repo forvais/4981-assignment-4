@@ -180,7 +180,7 @@ static void signal_handler_fn(int signal)
     }
 }
 
-_Noreturn void worker_entrypoint(DBM *db)
+_Noreturn void worker_entrypoint(DBM *db, const char *public_dir)
 {
     int retval;
     int err;
@@ -265,7 +265,7 @@ _Noreturn void worker_entrypoint(DBM *db)
         // On CLIENT data in...
         if(pollfds[0].revents & (POLLIN))
         {
-            if(handle_client_data(pollfds[0].fd, db) == 0)
+            if(handle_client_data(pollfds[0].fd, db, public_dir) == 0)
             {
                 // Trigger POLLHUP because the client has closed the connection.
                 pollfds[0].revents |= POLLHUP;

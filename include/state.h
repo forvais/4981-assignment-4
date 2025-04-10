@@ -35,7 +35,7 @@ int       app_remove_worker(app_state_t *state, pid_t pid, int *err);
 // Worker Scaling
 int app_set_desired_workers(app_state_t *state, size_t desired, int *err);
 int app_health_check_workers(app_state_t *state, int *err);
-int app_scale_workers(app_state_t *state, int *err);
+int app_scale_workers(app_state_t *state, const char *public_dir, int *err);
 
 worker_t *app_find_worker_by_fd(const app_state_t *state, int fd);
 worker_t *app_find_worker_by_client_fd(const app_state_t *state, int fd);

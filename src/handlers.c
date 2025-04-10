@@ -84,7 +84,7 @@ void handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_fil
     app_set_desired_workers(app, app->desired_workers + 1, NULL);
 }
 
-ssize_t handle_client_data(int connfd, DBM *db)
+ssize_t handle_client_data(int connfd, DBM *db, const char *public_dir)
 {
     char   *buf;
     ssize_t nread;
@@ -115,7 +115,7 @@ ssize_t handle_client_data(int connfd, DBM *db)
     log_debug("%s\n", buf);    // print the data sent to us
 
     // Do response stuff
-    request_init(&request, "./public/", NULL);
+    request_init(&request, public_dir, NULL);
     if(request_parse(&request, buf, NULL) < 0)
     {
         goto internal_server_error;

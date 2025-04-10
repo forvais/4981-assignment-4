@@ -325,7 +325,7 @@ int app_health_check_workers(app_state_t *state, int *err)
     return 0;
 }
 
-int app_scale_workers(app_state_t *state, int *err)
+int app_scale_workers(app_state_t *state, const char *public_dir, int *err)
 {
     if(state->nworkers == state->desired_workers)
     {
@@ -350,7 +350,7 @@ int app_scale_workers(app_state_t *state, int *err)
 
             if(worker->pid == 0)    // Worker
             {
-                worker_entrypoint(state->db);
+                worker_entrypoint(state->db, public_dir);
             }
         }
     }
