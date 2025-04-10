@@ -20,7 +20,6 @@
 #define UNKNOWN_OPTION_MESSAGE_LEN 22
 #define POLL_TIMEOUT (-1)
 #define MAX_CLIENTS 1024
-#define PREFORKED_CLIENTS 3
 
 typedef struct
 {
@@ -78,15 +77,7 @@ int main(int argc, char *argv[])
     }
 
     // Fork 3 workers
-    for(size_t idx = 0; idx < PREFORKED_CLIENTS; idx++)
-    {
-        const worker_t *worker = app_create_worker(&app, NULL);
-
-        if(worker->pid == 0)    // Worker
-        {
-            worker_entrypoint();
-        }
-    }
+    app_set_desired_workers(&app, NUM_WORKERS, NULL);
 
     // Setup TCP Server
     sockfd = tcp_server(args.address, args.port);
@@ -97,13 +88,6 @@ int main(int argc, char *argv[])
     log_info("Listening on %s:%d.\n", args.address, args.port);
 
     // Add SOCKFD to poll list
-
-    // TEMP: Shift all the pollfds up so that the server socket can be index 0
-    for(size_t idx = PREFORKED_CLIENTS; idx >= 1; idx--)
-    {
-        memmove(&app.pollfds[idx], &app.pollfds[idx - 1], sizeof(struct pollfd));
-    }
-
     app.pollfds[0].fd     = sockfd;
     app.pollfds[0].events = POLLIN;
     app.npollfds++;
@@ -117,6 +101,14 @@ int main(int argc, char *argv[])
     {
         int poll_result;
 
+        // Scale workers
+        app_health_check_workers(&app, NULL);
+        if(app_scale_workers(&app, &err) < 0)
+        {
+            log_error("main::app_scale_workers: Failed to scale workers (%s)\n", strerror(err));
+        }
+
+        // Listen for events
         errno       = 0;
         poll_result = poll(app.pollfds, (nfds_t)app.npollfds, POLL_TIMEOUT);
         if(poll_result < 0)
@@ -130,32 +122,8 @@ int main(int argc, char *argv[])
         // Check incoming connections to server
         if(app.pollfds[0].revents & POLLIN)
         {    // On client connect...
-            const worker_t *worker;
-
             // Accept the client and assign the client to a worker...
             handle_client_connect(app.pollfds[0].fd, &app, args.libhttp_path);
-
-            // Spawn another worker to fill the pool...
-            err    = 0;
-            worker = app_create_worker(&app, &err);
-            if(worker == NULL)
-            {
-                log_error("main::poll::POLLIN: Failed to create worker, expect to see one (1) less worker in the pool. (%s)\n", strerror(err));
-            }
-            else
-            {
-                // Jump worker to new entrypoint
-                if(worker->pid == 0)
-                {
-                    if(sockfd > -1)    // This is a workaround to being unable to suppress the double close diagnostic
-                    {
-                        close(sockfd);    // Close the server socket, not needed and could interfere
-                        sockfd = -1;
-                    }
-
-                    worker_entrypoint();    // Worker exits in new entrypoint
-                }
-            }
         }
 
         // Iterate through all workers

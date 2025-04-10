@@ -274,6 +274,97 @@ int app_remove_worker(app_state_t *state, pid_t pid, int *err)
     return 0;
 }
 
+int app_set_desired_workers(app_state_t *state, size_t desired, int *err)
+{
+    seterr(0);
+    if(state->max_clients < desired)
+    {
+        seterr(ERANGE);
+        return -1;
+    }
+
+    state->desired_workers = desired;
+    return 0;
+}
+
+int app_health_check_workers(app_state_t *state, int *err)
+{
+    seterr(0);
+    if(state == NULL)
+    {
+        seterr(EINVAL);
+        return -1;
+    }
+
+    for(size_t idx = 0; idx < state->nworkers; idx++)
+    {
+        const worker_t *worker = &state->workers[idx];
+        int             status = 0;
+
+        if(worker->pid == 0)
+        {
+            continue;
+        }
+
+        if(waitpid(worker->pid, &status, WNOHANG | WUNTRACED) != 0 && status > 0 && (WIFEXITED(status) || WIFSIGNALED(status) || WIFSTOPPED(status)))
+        {
+            app_remove_worker(state, worker->pid, NULL);
+        }
+    }
+
+    return 0;
+}
+
+int app_scale_workers(app_state_t *state, int *err)
+{
+    if(state->nworkers == state->desired_workers)
+    {
+        return 0;
+    }
+
+    // If there are less workers than desired
+    if(state->nworkers < state->desired_workers)
+    {
+        size_t delta = state->desired_workers - state->nworkers;    // Number of workers missing
+
+        for(size_t idx = 0; idx < delta; idx++)
+        {
+            const worker_t *worker;
+
+            seterr(0);
+            worker = app_create_worker(state, err);
+            if(worker == NULL)
+            {
+                return -2;
+            }
+
+            if(worker->pid == 0)    // Worker
+            {
+                worker_entrypoint();
+            }
+        }
+    }
+
+    // If there are more workers than desired
+    if(state->nworkers > state->desired_workers)
+    {
+        size_t delta = state->nworkers - state->desired_workers;    // Number of extra workers
+
+        for(size_t idx = 0; idx < delta; idx++)
+        {
+            const worker_t *worker;
+
+            worker = app_find_available_worker(state, err);
+            if(worker)
+            {
+                app_remove_worker(state, worker->pid, NULL);
+            }
+        }
+    }
+
+    return 0;
+}
+
 struct pollfd *app_poll(app_state_t *state, int fd, int *err)
 {
     struct pollfd *pollfd;

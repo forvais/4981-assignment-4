@@ -41,24 +41,11 @@ void handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_fil
         log_error("handle_client_connect::reload_library: %s\n", dlerror());
     }
 
-    // Find an available worker -- If none available, create a new worker
+    // Find an available worker -- If none, backlog the client until space is freed
     worker = app_find_available_worker(app, NULL);
     if(worker == NULL)
     {
-        // Spawn the worker
-        err    = 0;
-        worker = app_create_worker(app, &err);
-        if(worker == NULL)
-        {
-            log_error("handle_client_connect::app_create_worker: Failed to create a new worker, retrying next cycle...\n");
-            return;
-        }
-
-        // Jump worker to new entrypoint
-        if(worker->pid == 0)
-        {
-            worker_entrypoint();
-        }
+        return;
     }
 
     // Accept the client connection
@@ -91,6 +78,9 @@ void handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_fil
 
         return;
     }
+
+    // Scale up workers
+    app_set_desired_workers(app, app->desired_workers + 1, NULL);
 }
 
 ssize_t handle_client_data(int connfd)
@@ -206,6 +196,9 @@ ssize_t handle_worker_disconnect(worker_t *worker, app_state_t *app)
     {
         log_error("handle_worker_disconnect::unlink: %s\n", strerror(errno));
     }
+
+    // Down scale workers
+    app_set_desired_workers(app, app->desired_workers - 1, NULL);
 
     free(socket_path);
     return 0;
