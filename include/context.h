@@ -1,13 +1,8 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
 
-typedef void (*function_lib)(void);
+int reload_library(void);
 
-typedef struct
-{
-    function_lib func;
-} context_t;
-
-void* reload_library(void);
+void test(void);
 
 #endif /* CONTEXT_H */

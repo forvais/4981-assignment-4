@@ -52,8 +52,6 @@ int main(int argc, char *argv[])
     app_state_t app;
     arguments_t args;
 
-    context_t context;
-
     setup_signals(signal_handler_fn);
 
     // Get arguments
@@ -73,15 +71,10 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-
-    context.func = (void (*)(void))dlsym(reload_library(), "test");
-
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
+    if(reload_library() < 0)
+    {
+        log_error("main::reload_library: %s\n", dlerror());
+    }
 
     // Fork 3 workers
     for(size_t idx = 0; idx < PREFORKED_CLIENTS; idx++)
@@ -90,7 +83,7 @@ int main(int argc, char *argv[])
 
         if(worker->pid == 0)    // Worker
         {
-            worker_entrypoint(&context);
+            worker_entrypoint();
         }
     }
 
@@ -159,7 +152,7 @@ int main(int argc, char *argv[])
                         sockfd = -1;
                     }
 
-                    worker_entrypoint(&context);    // Worker exits in new entrypoint
+                    worker_entrypoint();    // Worker exits in new entrypoint
                 }
             }
         }

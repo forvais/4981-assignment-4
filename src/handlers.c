@@ -28,8 +28,6 @@ void handle_client_connect(int sockfd, app_state_t *app)
     worker_t *worker;
     client_t  client;
 
-    context_t context;
-
     log_debug("\n%sFD ? -> Server | Connect:%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
 
     // Defer connection handling if we're at max clients
@@ -38,15 +36,10 @@ void handle_client_connect(int sockfd, app_state_t *app)
         return;
     }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-
-    context.func = (void (*)(void))dlsym(reload_library(), "test");
-
-#pragma GCC diagnostic pop
-#pragma GCC diagnostic pop
+    if(reload_library() < 0)
+    {
+        log_error("handle_client_connect::reload_library: %s\n", dlerror());
+    }
 
     // Find an available worker -- If none available, create a new worker
     worker = app_find_available_worker(app, NULL);
@@ -64,7 +57,7 @@ void handle_client_connect(int sockfd, app_state_t *app)
         // Jump worker to new entrypoint
         if(worker->pid == 0)
         {
-            worker_entrypoint(&context);
+            worker_entrypoint();
         }
     }
 

@@ -181,7 +181,7 @@ static void signal_handler_fn(int signal)
     }
 }
 
-_Noreturn void worker_entrypoint(context_t *context)
+_Noreturn void worker_entrypoint(void)
 {
     int retval;
     int err;
@@ -194,7 +194,7 @@ _Noreturn void worker_entrypoint(context_t *context)
     int connfd = -1;
 
     setup_signals(signal_handler_fn);
-    context->func();
+    test();
 
     // Set socket path
     pid = getpid();
