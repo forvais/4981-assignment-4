@@ -194,6 +194,9 @@ _Noreturn void worker_entrypoint(void)
 
     setup_signals(signal_handler_fn);
 
+    // Close sockfd from parent
+    close(3);
+
     // Set socket path
     pid = getpid();
 

@@ -20,7 +20,6 @@
 #define UNKNOWN_OPTION_MESSAGE_LEN 22
 #define POLL_TIMEOUT (-1)
 #define MAX_CLIENTS 1024
-#define PREFORKED_CLIENTS 3
 
 typedef struct
 {
@@ -28,6 +27,7 @@ typedef struct
     in_port_t   port;
     bool        debug;
     const char *libhttp_path;
+    size_t      workers;
 } arguments_t;
 
 static _Noreturn void usage(const char *binary_name, int exit_code, const char *message);
@@ -77,16 +77,8 @@ int main(int argc, char *argv[])
         log_error("main::reload_library: %s\n", dlerror());
     }
 
-    // Fork 3 workers
-    for(size_t idx = 0; idx < PREFORKED_CLIENTS; idx++)
-    {
-        const worker_t *worker = app_create_worker(&app, NULL);
-
-        if(worker->pid == 0)    // Worker
-        {
-            worker_entrypoint();
-        }
-    }
+    // Set number of available workers
+    app_set_desired_workers(&app, args.workers, NULL);
 
     // Setup TCP Server
     sockfd = tcp_server(args.address, args.port);
@@ -97,13 +89,6 @@ int main(int argc, char *argv[])
     log_info("Listening on %s:%d.\n", args.address, args.port);
 
     // Add SOCKFD to poll list
-
-    // TEMP: Shift all the pollfds up so that the server socket can be index 0
-    for(size_t idx = PREFORKED_CLIENTS; idx >= 1; idx--)
-    {
-        memmove(&app.pollfds[idx], &app.pollfds[idx - 1], sizeof(struct pollfd));
-    }
-
     app.pollfds[0].fd     = sockfd;
     app.pollfds[0].events = POLLIN;
     app.npollfds++;
@@ -117,6 +102,14 @@ int main(int argc, char *argv[])
     {
         int poll_result;
 
+        // Scale workers
+        app_health_check_workers(&app, NULL);
+        if(app_scale_workers(&app, &err) < 0)
+        {
+            log_error("main::app_scale_workers: Failed to scale workers (%s)\n", strerror(err));
+        }
+
+        // Listen for events
         errno       = 0;
         poll_result = poll(app.pollfds, (nfds_t)app.npollfds, POLL_TIMEOUT);
         if(poll_result < 0)
@@ -130,32 +123,8 @@ int main(int argc, char *argv[])
         // Check incoming connections to server
         if(app.pollfds[0].revents & POLLIN)
         {    // On client connect...
-            const worker_t *worker;
-
             // Accept the client and assign the client to a worker...
             handle_client_connect(app.pollfds[0].fd, &app, args.libhttp_path);
-
-            // Spawn another worker to fill the pool...
-            err    = 0;
-            worker = app_create_worker(&app, &err);
-            if(worker == NULL)
-            {
-                log_error("main::poll::POLLIN: Failed to create worker, expect to see one (1) less worker in the pool. (%s)\n", strerror(err));
-            }
-            else
-            {
-                // Jump worker to new entrypoint
-                if(worker->pid == 0)
-                {
-                    if(sockfd > -1)    // This is a workaround to being unable to suppress the double close diagnostic
-                    {
-                        close(sockfd);    // Close the server socket, not needed and could interfere
-                        sockfd = -1;
-                    }
-
-                    worker_entrypoint();    // Worker exits in new entrypoint
-                }
-            }
         }
 
         // Iterate through all workers
@@ -213,13 +182,14 @@ static _Noreturn void usage(const char *binary_name, int exit_code, const char *
         fprintf(stderr, "%s\n\n", message);
     }
 
-    fprintf(stderr, "Usage: %s [-h] [-d] [-l <filepath>] -a <address> -p <port>\n", binary_name);
+    fprintf(stderr, "Usage: %s [-h] [-d] [-l <filepath>] [-w <workers>] -a <address> -p <port>\n", binary_name);
     fputs("Options:\n", stderr);
     fputs("  -a, --address <address>   Address of the web server\n", stderr);
     fputs("  -p, --port <port>         Port to bind to\n", stderr);
     fputs("  -h, --help                Display this help message\n", stderr);
     fputs("  -d, --debug               Enables the debug mode\n", stderr);
     fputs("  -l, --lib <filepath>      Filepath to an accompanying HTTP library.\n", stderr);
+    fputs("  -w, --workers <workers>   Number of workers to always be available.\n", stderr);
     exit(exit_code);
 }
 
@@ -233,11 +203,12 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
         {"port",    required_argument, NULL, 'p'},
         {"debug",   no_argument,       NULL, 'd'},
         {"lib",     required_argument, NULL, 'l'},
+        {"workers", required_argument, NULL, 'w'},
         {"help",    no_argument,       NULL, 'h'},
         {NULL,      0,                 NULL, 0  }
     };
 
-    while((opt = getopt_long(argc, argv, "hda:p:l:", long_options, NULL)) != -1)
+    while((opt = getopt_long(argc, argv, "hda:p:l:w:", long_options, NULL)) != -1)
     {
         switch(opt)
         {
@@ -257,6 +228,14 @@ static void get_arguments(arguments_t *args, int argc, char *argv[])
                 break;
             case 'l':
                 args->libhttp_path = optarg;
+                break;
+            case 'w':
+                if(optarg)
+                {
+                    char *end;
+
+                    args->workers = strtoul(optarg, &end, 10);    // NOLINT(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                }
                 break;
             case 'h':
                 usage(argv[0], EXIT_SUCCESS, NULL);
@@ -290,5 +269,10 @@ static void validate_arguments(const char *binary_name, arguments_t *args)
     if(args->libhttp_path == NULL)
     {
         args->libhttp_path = LIBHTTP_PATH;
+    }
+
+    if(args->workers == 0)
+    {
+        args->workers = NUM_WORKERS;
     }
 }
