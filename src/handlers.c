@@ -43,8 +43,7 @@ void handle_client_connect(int sockfd, app_state_t *app)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 
-    unload_library();
-    context.func = (void (*)(void))dlsym(load_library(), "test");
+    context.func = (void (*)(void))dlsym(reload_library(), "test");
 
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop

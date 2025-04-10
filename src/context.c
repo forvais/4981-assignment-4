@@ -4,17 +4,23 @@
 
 static void *handle = NULL;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
-void *load_library(void)
+static void *load_library(void)
 {
     handle = dlopen("./library.so", RTLD_LAZY);
     return handle;
 }
 
-void unload_library(void)
+static void unload_library(void)
 {
     if(handle)
     {
         dlclose(handle);
         handle = NULL;
     }
+}
+
+void* reload_library(void)
+{
+    unload_library();
+    return load_library();
 }

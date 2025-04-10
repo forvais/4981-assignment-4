@@ -78,8 +78,7 @@ int main(int argc, char *argv[])
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 
-    unload_library();
-    context.func = (void (*)(void))dlsym(load_library(), "test");
+    context.func = (void (*)(void))dlsym(reload_library(), "test");
 
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
