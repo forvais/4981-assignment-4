@@ -703,10 +703,17 @@ int destroy_header(http_header_t *headers, size_t *nheaders, const char *key, in
 int destroy_headers(http_header_t *headers, size_t *nheaders, int *err)
 {
     seterr(0);
-    if(headers == NULL || nheaders == NULL || *nheaders == 0)
+    if(headers == NULL || nheaders == NULL)
     {
         seterr(EINVAL);
         return -1;
+    }
+
+    // This is a niche case where I've allocated one http_header_t slot but nheader is set to "0" because there are
+    // technically no headers in that memory space but I've still got to free the empty allocation.
+    if(*nheaders == 0)
+    {
+        *nheaders += 1;
     }
 
     for(size_t offset = 0; offset < *nheaders; offset++)

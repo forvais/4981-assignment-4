@@ -116,8 +116,15 @@ ssize_t handle_client_data(int connfd, DBM *db)
 
     // Do response stuff
     request_init(&request, "./public/", NULL);
-    request_parse(&request, buf, NULL);
-    request_process(&request, &response, NULL);
+    if(request_parse(&request, buf, NULL) < 0)
+    {
+        goto internal_server_error;
+    }
+
+    if(request_process(&request, &response, NULL) < 0)
+    {
+        goto internal_server_error;
+    }
 
     log_info("[FD:%d] %s\n", connfd, request.request_uri);
 
@@ -130,6 +137,7 @@ ssize_t handle_client_data(int connfd, DBM *db)
     response_size         = response_write(&response, &request, &response_buf, NULL);
     if(response_size < 0)
     {
+    internal_server_error:
         strhcpy(&response_buf, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
         response_size = (ssize_t)strlen(response_buf);
     }
