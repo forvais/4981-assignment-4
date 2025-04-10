@@ -1,1 +1,2 @@
 server src/server.c src/logger.c include/logger.h src/networking.c include/networking.h src/utils.c include/utils.h src/handlers.c include/handlers.h src/io.c include/io.h src/state.c include/state.h src/worker.c include/worker.h src/loader.c include/loader.h include/http/http-info.h src/ndbm/database.c include/ndbm/database.h gdbm_compat
+explorer src/ndbm/explorer.c src/logger.c include/logger.h gdbm_compat
