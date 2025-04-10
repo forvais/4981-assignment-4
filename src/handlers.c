@@ -1,12 +1,14 @@
 #include "handlers.h"
-#include "http/http.h"
+#include "http/http-info.h"
 #include "io.h"
+#include "loader.h"
 #include "logger.h"
 #include "networking.h"
 #include "state.h"
 #include "utils.h"
 #include "worker.h"
 #include <arpa/inet.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -19,7 +21,7 @@
 
 #define BUFLEN 1024
 
-void handle_client_connect(int sockfd, app_state_t *app)
+void handle_client_connect(int sockfd, app_state_t *app, const char *libhttp_filepath)
 {
     int err;
 
@@ -32,6 +34,11 @@ void handle_client_connect(int sockfd, app_state_t *app)
     if(app->nworkers == app->max_clients)
     {
         return;
+    }
+
+    if(reload_library(libhttp_filepath) < 0)
+    {
+        log_error("handle_client_connect::reload_library: %s\n", dlerror());
     }
 
     // Find an available worker -- If none available, create a new worker

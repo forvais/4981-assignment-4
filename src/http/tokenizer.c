@@ -1,6 +1,7 @@
 #include "http/tokenizer.h"
-#include "utils.h"
 #include <string.h>
+
+#define unused(x) ((void)(x))
 
 #define ASCII_HT 10
 #define ASCII_LF 10
@@ -34,7 +35,7 @@ ssize_t tokenize_request_line(http_request_tokens_t *tokens, const char *request
         offset = base;
         goto cleanup;
     }
-    strhncpy(&tokens->method, request + base, (size_t)(offset - base));
+    tokens->method = strndup(request + base, (size_t)(offset - base));
 
     // 1*SP
     offset += COMBINATOR_START(many_spaces, request + offset);
@@ -47,7 +48,7 @@ ssize_t tokenize_request_line(http_request_tokens_t *tokens, const char *request
         offset = base;
         goto cleanup;
     }
-    strhncpy(&tokens->uri, request + base, (size_t)(offset - base));
+    tokens->uri = strndup(request + base, (size_t)(offset - base));
 
     // 1*SP
     offset += COMBINATOR_START(many_spaces, request + offset);
@@ -60,7 +61,7 @@ ssize_t tokenize_request_line(http_request_tokens_t *tokens, const char *request
         offset = base;
         goto cleanup;
     }
-    strhncpy(&tokens->version, request + base, (size_t)(offset - base));
+    tokens->version = strndup(request + base, (size_t)(offset - base));
 
     // CRLF
     offset += crlf(request + offset, NULL);
@@ -83,7 +84,7 @@ ssize_t tokenize_headers(http_request_tokens_t *tokens, const char *request)
     {
         goto cleanup;
     }
-    strhncpy(&tokens->headers, request, (size_t)(offset - base));
+    tokens->headers = strndup(request, (size_t)(offset - base));
 
 cleanup:
     free_com(com_headers);
@@ -120,7 +121,7 @@ ssize_t tokenize_http_request(http_request_tokens_t *tokens, const char *request
     }
 
     // Body
-    strhcpy(&tokens->body, request + offset);
+    tokens->body = strdup(request + offset);
 
     return offset;
 }

@@ -3,6 +3,7 @@
 #ifndef WORKER_H
 #define WORKER_H
 
+#include "loader.h"
 #include "networking.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
