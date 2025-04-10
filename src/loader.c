@@ -84,7 +84,10 @@ int check_library_update(int fd, const char *filepath, int *err)
         seterr(errno);
         return -1;
     }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
     event = (struct inotify_event *)buffer;
+#pragma GCC diagnostic pop
 
     if(event->mask & IN_MODIFY && strcmp(event->name, "libhttp.so") == 0)
     {
