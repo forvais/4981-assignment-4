@@ -1,5 +1,4 @@
 #include "worker.h"
-#include "context.h"
 #include "handlers.h"
 #include "io.h"
 #include "logger.h"
@@ -194,7 +193,6 @@ _Noreturn void worker_entrypoint(void)
     int connfd = -1;
 
     setup_signals(signal_handler_fn);
-    test();
 
     // Set socket path
     pid = getpid();

@@ -1,6 +1,6 @@
 #include "handlers.h"
 #include "context.h"
-#include "http/http.h"
+#include "http/http-info.h"
 #include "io.h"
 #include "logger.h"
 #include "networking.h"
