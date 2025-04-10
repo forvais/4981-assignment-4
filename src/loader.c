@@ -42,12 +42,12 @@ int reload_library(const char *filepath)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 
-    s_request_init     = dlsym(dlhandle, "request_init");
-    s_request_parse    = dlsym(dlhandle, "request_parse");
-    s_request_process  = dlsym(dlhandle, "request_process");
-    s_response_write   = dlsym(dlhandle, "response_write");
-    s_request_destroy  = dlsym(dlhandle, "request_destroy");
-    s_response_destroy = dlsym(dlhandle, "response_destroy");
+    s_request_init     = (int (*)(http_request_t *, const char *, int *))dlsym(dlhandle, "request_init");
+    s_request_parse    = (int (*)(http_request_t *, const char *, int *))dlsym(dlhandle, "request_parse");
+    s_request_process  = (int (*)(http_request_t *, http_response_t *, int *))dlsym(dlhandle, "request_process");
+    s_response_write   = (int (*)(const http_response_t *, const http_request_t *, char **, int *))dlsym(dlhandle, "response_write");
+    s_request_destroy  = (int (*)(http_request_t *, int *))dlsym(dlhandle, "request_destroy");
+    s_response_destroy = (int (*)(http_response_t *, int *))dlsym(dlhandle, "response_destroy");
 
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
