@@ -1,6 +1,16 @@
 #include "loader.h"
+#include "logger.h"
+#include "utils.h"
 #include <dlfcn.h>
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/inotify.h>
+#include <unistd.h>
+
+#define EVENT_SIZE (sizeof(struct inotify_event))
+#define BUF_LEN (1024 * (EVENT_SIZE + 16))
 
 static void *dlhandle = NULL;    // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
@@ -55,6 +65,31 @@ int reload_library(const char *filepath)
     if(!(s_request_init && s_request_parse && s_request_process && s_response_write && s_request_destroy && s_response_destroy))
     {
         return -1;
+    }
+
+    return 0;
+}
+
+int check_library_update(int fd, const char *filepath, int *err)
+{
+    const struct inotify_event *event;
+
+    char    buffer[BUF_LEN];
+    ssize_t length;
+
+    errno  = 0;
+    length = read(fd, buffer, BUF_LEN);
+    if(length < 0)
+    {
+        seterr(errno);
+        return -1;
+    }
+    event = (struct inotify_event *)buffer;
+
+    if(event->mask & IN_MODIFY && strcmp(event->name, "libhttp.so") == 0)
+    {
+        log_debug("\nHTTP library update detected.\n");
+        reload_library(filepath);
     }
 
     return 0;

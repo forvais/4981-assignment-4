@@ -7,6 +7,7 @@
 #include "worker.h"
 #include <dlfcn.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <poll.h>
 #include <signal.h>
@@ -14,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/inotify.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -53,6 +55,9 @@ int main(int argc, char *argv[])
     app_state_t app;
     arguments_t args;
 
+    int inotify_fd;
+    int inotify_w;
+
     setup_signals(signal_handler_fn);
 
     // Get arguments
@@ -69,6 +74,20 @@ int main(int argc, char *argv[])
     if(app_init(&app, MAX_CLIENTS, &err) < 0)
     {
         log_error("main::app_init: %s\n", strerror(err));
+        return EXIT_FAILURE;
+    }
+
+    // Setup library loading
+    inotify_fd = inotify_init1(IN_CLOEXEC | O_NONBLOCK);
+    if(inotify_fd < 0)
+    {
+        return EXIT_FAILURE;
+    }
+
+    errno     = 0;
+    inotify_w = inotify_add_watch(inotify_fd, ".", IN_CREATE | IN_MODIFY | IN_DELETE);
+    if(inotify_w < 0)
+    {
         return EXIT_FAILURE;
     }
 
@@ -101,6 +120,9 @@ int main(int argc, char *argv[])
     while(is_running)
     {
         int poll_result;
+
+        // Check for library updates
+        check_library_update(inotify_fd, args.libhttp_path, NULL);
 
         // Scale workers
         app_health_check_workers(&app, NULL);
@@ -158,6 +180,8 @@ int main(int argc, char *argv[])
     }
 
     close(sockfd);
+    inotify_rm_watch(inotify_fd, inotify_w);
+    close(inotify_fd);
 
     for(size_t idx = 0; idx < app.nworkers; idx++)
     {
