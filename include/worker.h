@@ -4,6 +4,7 @@
 #define WORKER_H
 
 #include "loader.h"
+#include "ndbm/database.h"
 #include "networking.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -21,6 +22,6 @@ int signal_worker(const worker_t *worker, int signal, int *err);
 int reset_worker(worker_t *worker, int *err);
 int assign_client_to_worker(worker_t *worker, const client_t *client, int *err);
 
-void worker_entrypoint(void);
+void worker_entrypoint(DBM *db);
 
 #endif

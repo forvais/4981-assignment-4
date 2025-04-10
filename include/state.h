@@ -5,12 +5,15 @@
 
 #define NUM_WORKERS 3
 
+#include "ndbm/database.h"
 #include "worker.h"
 #include <poll.h>
 #include <stdlib.h>
 
 typedef struct
 {
+    DBM *db;
+
     size_t max_clients;
 
     size_t npollfds;
