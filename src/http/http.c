@@ -343,6 +343,7 @@ int handle_head(http_request_t *request, http_response_t *response, int *err)
 {
     handle_get(request, response, err);
 
+    free(response->body);
     response->body = NULL;
 
     return 0;
