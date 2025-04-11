@@ -171,8 +171,18 @@ int request_parse(http_request_t *request, const char *data, int *err)
 
     // Set request line properties
     request->method       = get_http_method_code(tokens.method, NULL);
-    request->request_uri  = strdup(strcmp(tokens.uri, "/") == 0 ? "/index.html" : tokens.uri);
     request->http_version = get_http_version_code(tokens.version, NULL);
+
+    // - If the URI is missing, this will cause a segfault.
+    //   We should default it to the homepage.
+    if(tokens.uri)
+    {
+        request->request_uri = strdup(strcmp(tokens.uri, "/") == 0 ? "/index.html" : tokens.uri);
+    }
+    else
+    {
+        request->request_uri = strdup("/index.html");
+    }
 
     // Set header properties
     errno      = 0;
