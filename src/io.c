@@ -85,61 +85,6 @@ ssize_t read_string(int fd, char **buf, size_t size, int *err)
     return nread;
 }
 
-ssize_t read_file(uint8_t **buf, const char *filepath, size_t size, int *err)
-{
-    ssize_t nread;
-    ssize_t tread;
-
-    int fd;
-
-    errno = 0;
-    fd    = open(filepath, O_RDONLY | O_CLOEXEC);
-    if(fd < 0)
-    {
-        seterr(errno);
-        return -1;
-    }
-
-    errno = 0;
-    *buf  = (uint8_t *)calloc(size, sizeof(uint8_t));
-    if(*buf == NULL)
-    {
-        seterr(errno);
-        close(fd);
-        return -2;
-    }
-
-    nread = 0;
-    do
-    {
-        char *tbuf = NULL;
-
-        errno = 0;
-        tread = read(fd, &(*buf)[nread], size);
-        if(tread < 0)
-        {
-            seterr(errno);
-            close(fd);
-            return -3;
-        }
-
-        nread += tread;
-
-        errno = 0;
-        tbuf  = (char *)realloc(*buf, (size_t)nread + size);
-        if(tbuf == NULL)
-        {
-            seterr(errno);
-            close(fd);
-            return -4;    // NOLINT(cppcoreguidelines-no-magic-numbers)
-        }
-        *buf = (uint8_t *)tbuf;
-    } while(tread == (ssize_t)size);
-
-    close(fd);
-    return nread;
-}
-
 int send_fd(int sock, int fd, int *err)
 {
     struct iovec    io;

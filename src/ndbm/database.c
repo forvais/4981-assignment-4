@@ -42,11 +42,6 @@ int db_insert(DBM *db, const char *key, const uint8_t *buf, size_t size, int *er
 
     result = dbm_store(db, *(datum *)&key_datum, value_datum, DBM_REPLACE);
 
-    if(result == -1)
-    {
-        printf("%d\n", dbm_error(db));
-    }
-
     free(value_datum.dptr);
     return result;
 }
